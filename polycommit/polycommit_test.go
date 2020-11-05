@@ -24,7 +24,7 @@ func generatePoly(r io.Reader) []big.Int {
 }
 
 func TestCommit(t *testing.T) {
-	var pk PK
+	var pk Pk
 	pk.Setup(rand.Reader, deg)
 	poly := generatePoly(rand.Reader)
 	g2, err := pk.Commit(poly)
@@ -43,7 +43,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestWitness(t *testing.T) {
-	var pk PK
+	var pk Pk
 	pk.Setup(rand.Reader, deg)
 	// x^3 - 2x^2 + 7x - 5
 	poly := []big.Int{*big.NewInt(-5), *big.NewInt(7), *big.NewInt(-2), *big.NewInt(1)}
@@ -87,7 +87,7 @@ func TestWitness(t *testing.T) {
 }
 
 func BenchmarkCommit(b *testing.B) {
-	var pk PK
+	var pk Pk
 	pk.Setup(rand.Reader, deg)
 	poly := generatePoly(rand.Reader)
 	b.ResetTimer()
@@ -97,7 +97,7 @@ func BenchmarkCommit(b *testing.B) {
 }
 
 func BenchmarkVerifyPoly(b *testing.B) {
-	var pk PK
+	var pk Pk
 	pk.Setup(rand.Reader, deg)
 	poly := generatePoly(rand.Reader)
 	g2, _ := pk.Commit(poly)
@@ -108,7 +108,7 @@ func BenchmarkVerifyPoly(b *testing.B) {
 }
 
 func BenchmarkCreateWitness(b *testing.B) {
-	var pk PK
+	var pk Pk
 	pk.Setup(rand.Reader, deg)
 	poly := generatePoly(rand.Reader)
 	i, _ := rand.Int(rand.Reader, bn256.Order)
@@ -119,7 +119,7 @@ func BenchmarkCreateWitness(b *testing.B) {
 }
 
 func BenchmarkVerifyEval(b *testing.B) {
-	var pk PK
+	var pk Pk
 	pk.Setup(rand.Reader, deg)
 	poly := generatePoly(rand.Reader)
 	g2, _ := pk.Commit(poly)

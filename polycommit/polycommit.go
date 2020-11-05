@@ -13,14 +13,14 @@ import (
 	bn256 "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
 )
 
-// Struct PK implements a public key for polycommit to function on.
+// Struct Pk implements a public key for polycommit to function on.
 // It is the basic structure for all operations.
-type PK struct {
+type Pk struct {
 	G1P []bn256.G1
 	G2P []bn256.G2
 }
 
-func (pk *PK) checkPoly(poly []big.Int) error {
+func (pk *Pk) checkPoly(poly []big.Int) error {
 	if (len(poly) < 1) {
 		return errors.New("Polynomial is empty")
 	}
@@ -32,7 +32,7 @@ func (pk *PK) checkPoly(poly []big.Int) error {
 
 // Create a new public key for commitment,
 // with the randomness generated in reader r and degree t.
-func (pk *PK) Setup(r io.Reader, t int) error {
+func (pk *Pk) Setup(r io.Reader, t int) error {
 	pk.G1P = make([]bn256.G1, t)
 	pk.G2P = make([]bn256.G2, t)
 	alpha, err := rand.Int(r, bn256.Order)
@@ -52,12 +52,12 @@ func (pk *PK) Setup(r io.Reader, t int) error {
 }
 
 // Return the degree of the current public key.
-func (pk *PK) Degree() int {
+func (pk *Pk) Degree() int {
 	return len(pk.G1P)
 }
 
 // Generate the commitment of the polynomial poly.
-func (pk *PK) Commit(poly []big.Int) (*bn256.G2, error) {
+func (pk *Pk) Commit(poly []big.Int) (*bn256.G2, error) {
 	err := pk.checkPoly(poly)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (pk *PK) Commit(poly []big.Int) (*bn256.G2, error) {
 }
 
 // Verify that the commitment g2 is consistent with the polynomial poly.
-func (pk *PK) VerifyPoly(poly []big.Int, g2 *bn256.G2) bool {
+func (pk *Pk) VerifyPoly(poly []big.Int, g2 *bn256.G2) bool {
 	g2c, err := pk.Commit(poly)
 	if (err != nil) {
 		return false
@@ -85,7 +85,7 @@ func (pk *PK) VerifyPoly(poly []big.Int, g2 *bn256.G2) bool {
 }
 
 // Create a witness g1 to the evaluation of the polynomial poly at i.
-func (pk *PK) CreateWitness(poly []big.Int, i *big.Int) (res *big.Int, g1 *bn256.G1, err error) {
+func (pk *Pk) CreateWitness(poly []big.Int, i *big.Int) (res *big.Int, g1 *bn256.G1, err error) {
 	err = pk.checkPoly(poly)
 	if err != nil {
 		return nil, nil, err
@@ -118,7 +118,7 @@ func (pk *PK) CreateWitness(poly []big.Int, i *big.Int) (res *big.Int, g1 *bn256
 }
 
 // Verify the evaluation of the polynomial with the commitment g2 and the witness g1.
-func (pk *PK) VerifyEval(g2 *bn256.G2, i *big.Int, res *big.Int, g1 *bn256.G1) bool {
+func (pk *Pk) VerifyEval(g2 *bn256.G2, i *big.Int, res *big.Int, g1 *bn256.G1) bool {
 	g_i := new(bn256.G2)
 	g_i.ScalarBaseMult(i)
 	p := new(bn256.G2)

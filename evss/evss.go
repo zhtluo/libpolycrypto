@@ -14,7 +14,7 @@ import (
 
 // Struct PublicInfo implements the public information available at the start of the phase.
 type PublicInfo struct {
-	PK polycommit.PK
+	Pk polycommit.Pk
 	Commit bn256.G2
 }
 
@@ -48,11 +48,11 @@ func GenerateSecret(r io.Reader, constant *big.Int, degree int) (*Secret, error)
 // Generate public information with the secret.
 func GeneratePublicInfo(r io.Reader, s *Secret) (*PublicInfo, error) {
 	pi := new(PublicInfo)
-	err := pi.PK.Setup(r, len(s.Poly))
+	err := pi.Pk.Setup(r, len(s.Poly))
 	if err != nil {
 		return nil, err
 	}
-	c, err := pi.PK.Commit(s.Poly)
+	c, err := pi.Pk.Commit(s.Poly)
 	pi.Commit = *c
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func GeneratePublicInfo(r io.Reader, s *Secret) (*PublicInfo, error) {
 func GenerateShare(pi *PublicInfo, s *Secret, index *big.Int) (*Share, error) {
 	sh := new(Share)
 	sh.Index = *index
-	r, w, err := pi.PK.CreateWitness(s.Poly, &sh.Index)
+	r, w, err := pi.Pk.CreateWitness(s.Poly, &sh.Index)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func GenerateShare(pi *PublicInfo, s *Secret, index *big.Int) (*Share, error) {
 
 // Verify the received share with the public information.
 func VerifyShare(pi *PublicInfo, sh *Share) bool {
-	return pi.PK.VerifyEval(&pi.Commit, &sh.Index, &sh.Result, &sh.Witness)
+	return pi.Pk.VerifyEval(&pi.Commit, &sh.Index, &sh.Result, &sh.Witness)
 }
 
 // Reconstruct the constant term of the secret with shares.
