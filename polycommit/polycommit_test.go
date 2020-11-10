@@ -2,20 +2,21 @@ package polycommit
 
 import (
 	"testing"
-	
-	"io"
-	"math/big"
+
+	"bytes"
 	"crypto/rand"
 	bn256 "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
+	"io"
+	"math/big"
 )
 
 const (
-	deg		= 256
+	deg = 256
 )
 
 func generatePoly(r io.Reader) []big.Int {
 	poly := make([]big.Int, deg)
-	for i, _ := range(poly) {
+	for i, _ := range poly {
 		var p *big.Int
 		p, _ = rand.Int(r, bn256.Order)
 		poly[i] = *p
@@ -83,7 +84,31 @@ func TestWitness(t *testing.T) {
 	res, _ = rand.Int(rand.Reader, bn256.Order)
 	if pk.VerifyEval(g2, i, res, g1) != false {
 		t.Error("VerifyEval failed, expected: false.")
-	}		
+	}
+}
+
+func TestMarshal(t *testing.T) {
+	var pk Pk
+	pk.Setup(rand.Reader, deg)
+	b, err := MarshalPk(&pk)
+	if err != nil {
+		t.Error(err)
+	}
+	rPk, err := UnmarshalPk(b)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(pk.G1P) != len(rPk.G1P) || len(pk.G2P) != len(rPk.G2P) {
+		t.Error("Marshal does not generate equal result.")
+	}
+	for i, _ := range pk.G1P {
+		if !bytes.Equal(pk.G1P[i].Marshal(), rPk.G1P[i].Marshal()) {
+			t.Error("Marshal does not generate equal result.")
+		}
+		if !bytes.Equal(pk.G2P[i].Marshal(), rPk.G2P[i].Marshal()) {
+			t.Error("Marshal does not generate equal result.")
+		}
+	}
 }
 
 func BenchmarkCommit(b *testing.B) {
@@ -115,7 +140,7 @@ func BenchmarkCreateWitness(b *testing.B) {
 	b.ResetTimer()
 	for t := 0; t < b.N; t++ {
 		pk.CreateWitness(poly, i)
-	}	
+	}
 }
 
 func BenchmarkVerifyEval(b *testing.B) {
@@ -128,6 +153,5 @@ func BenchmarkVerifyEval(b *testing.B) {
 	b.ResetTimer()
 	for t := 0; t < b.N; t++ {
 		pk.VerifyEval(g2, i, res, g1)
-	}	
+	}
 }
-

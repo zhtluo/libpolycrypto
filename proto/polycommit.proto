@@ -1,0 +1,10 @@
+syntax = "proto3" ;
+package proto ;
+
+option go_package = "github.com/zhtluo/libpolycrypto/proto" ;
+
+message Pk {
+	repeated bytes g1_p = 1 ;
+	repeated bytes g2_p = 2 ;
+}
+

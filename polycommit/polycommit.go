@@ -5,12 +5,14 @@
 package polycommit
 
 import (
-	"io"
-	"errors"
 	"bytes"
-	"math/big"
 	"crypto/rand"
+	"errors"
 	bn256 "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
+	pb "github.com/zhtluo/libpolycrypto/proto"
+	"google.golang.org/protobuf/proto"
+	"io"
+	"math/big"
 )
 
 // Struct Pk implements a public key for polycommit to function on.
@@ -21,10 +23,10 @@ type Pk struct {
 }
 
 func (pk *Pk) checkPoly(poly []big.Int) error {
-	if (len(poly) < 1) {
+	if len(poly) < 1 {
 		return errors.New("Polynomial is empty")
 	}
-	if (pk.Degree() < len(poly)) {
+	if pk.Degree() < len(poly) {
 		return errors.New("Public key has a degree less than the polynomial")
 	}
 	return nil
@@ -64,7 +66,7 @@ func (pk *Pk) Commit(poly []big.Int) (*bn256.G2, error) {
 	}
 	ret := new(bn256.G2)
 	term := new(bn256.G2)
-	for i, _ := range(poly) {
+	for i, _ := range poly {
 		if poly[i].Sign() >= 0 {
 			term.ScalarMult(&pk.G2P[i], &poly[i])
 		} else {
@@ -78,7 +80,7 @@ func (pk *Pk) Commit(poly []big.Int) (*bn256.G2, error) {
 // Verify that the commitment g2 is consistent with the polynomial poly.
 func (pk *Pk) VerifyPoly(poly []big.Int, g2 *bn256.G2) bool {
 	g2c, err := pk.Commit(poly)
-	if (err != nil) {
+	if err != nil {
 		return false
 	}
 	return bytes.Equal(g2.Marshal(), g2c.Marshal())
@@ -92,13 +94,13 @@ func (pk *Pk) CreateWitness(poly []big.Int, i *big.Int) (res *big.Int, g1 *bn256
 	}
 	// poly(x) - poly(i) always divides (x - i) since the latter is a root of the former.
 	// With that infomation we can jump into the division.
-	quotient := make([]big.Int, len(poly) - 1)
+	quotient := make([]big.Int, len(poly)-1)
 	if len(quotient) > 0 {
 		// q_(n - 1) = p_n
-		quotient[len(quotient) - 1] = poly[len(quotient)]
+		quotient[len(quotient)-1] = poly[len(quotient)]
 		for j := len(quotient) - 2; j >= 0; j-- {
 			// q_j = p_(j + 1) + q_(j + 1) * i
-			quotient[j].Add(&poly[j + 1], quotient[j].Mul(&quotient[j + 1], i))
+			quotient[j].Add(&poly[j+1], quotient[j].Mul(&quotient[j+1], i))
 		}
 	}
 	// Utilize the remainder since we know it divides.
@@ -106,7 +108,7 @@ func (pk *Pk) CreateWitness(poly []big.Int, i *big.Int) (res *big.Int, g1 *bn256
 	res.Add(&poly[0], res.Mul(&quotient[0], i))
 	g1 = new(bn256.G1)
 	term_g1 := new(bn256.G1)
-	for j, _ := range(quotient) {
+	for j, _ := range quotient {
 		if quotient[j].Sign() >= 0 {
 			term_g1.ScalarMult(&pk.G1P[j], &quotient[j])
 		} else {
@@ -129,3 +131,34 @@ func (pk *Pk) VerifyEval(g2 *bn256.G2, i *big.Int, res *big.Int, g1 *bn256.G1) b
 	return bytes.Equal(lhs.Marshal(), rhs.Marshal())
 }
 
+// Serialize the specified public key
+func MarshalPk(pk *Pk) ([]byte, error) {
+	var sPk pb.Pk
+	sPk.G1P = make([][]byte, len(pk.G1P))
+	sPk.G2P = make([][]byte, len(pk.G2P))
+	for i, _ := range pk.G1P {
+		sPk.G1P[i] = pk.G1P[i].Marshal()
+		sPk.G2P[i] = pk.G2P[i].Marshal()
+	}
+	return proto.Marshal(&sPk)
+}
+
+// Deserialize the specified public key
+func UnmarshalPk(b []byte) (*Pk, error) {
+	var sPk pb.Pk
+	err := proto.Unmarshal(b, &sPk)
+	if err != nil {
+		return nil, err
+	}
+	pk := new(Pk)
+	pk.G1P = make([]bn256.G1, len(sPk.G1P))
+	pk.G2P = make([]bn256.G2, len(sPk.G2P))
+	for i, _ := range sPk.G1P {
+		_, err = pk.G1P[i].Unmarshal(sPk.G1P[i])
+		_, err = pk.G2P[i].Unmarshal(sPk.G2P[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pk, nil
+}
