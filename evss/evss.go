@@ -14,6 +14,10 @@ import (
 	"math/big"
 )
 
+const (
+	MaxInt = bn256.Order
+)
+
 // Struct PublicInfo implements the public information available at the start of the phase.
 type PublicInfo struct {
 	Pk     polycommit.Pk
