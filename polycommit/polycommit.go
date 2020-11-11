@@ -41,12 +41,17 @@ func (pk *Pk) Setup(r io.Reader, t int) error {
 	if err != nil {
 		return err
 	}
-	alpha = big.NewInt(1)
+	for alpha.Cmp(big.NewInt(0)) == 0 {
+		alpha, err = rand.Int(r, bn256.Order)
+		if err != nil {
+			return err
+		}
+	}
 	am := big.NewInt(1)
 	pk.G1P[0].ScalarBaseMult(big.NewInt(1))
 	pk.G2P[0].ScalarBaseMult(big.NewInt(1))
 	for i := 1; i < t; i++ {
-		am.Mul(am, alpha)
+		am.Mod(am.Mul(am, alpha), bn256.Order)
 		pk.G1P[i].ScalarMult(&pk.G1P[0], am)
 		pk.G2P[i].ScalarMult(&pk.G2P[0], am)
 	}
