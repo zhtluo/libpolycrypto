@@ -14,7 +14,7 @@ import (
 	"math/big"
 )
 
-const (
+var (
 	MaxInt = bn256.Order
 )
 
