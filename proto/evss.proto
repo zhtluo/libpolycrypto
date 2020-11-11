@@ -1,0 +1,17 @@
+syntax = "proto3" ;
+package proto ;
+
+option go_package = "github.com/zhtluo/libpolycrypto/proto" ;
+import "polycommit.proto" ;
+
+message PublicInfo {
+	bytes pk = 1 ;
+	bytes commit = 2 ;
+}
+
+message Share {
+	bytes Index = 1 ;
+	bytes Result = 2 ;
+	bytes Witness = 3 ;
+}
+

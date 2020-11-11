@@ -5,16 +5,18 @@
 package evss
 
 import (
-	"github.com/zhtluo/libpolycrypto/polycommit"
-	"io"
-	"math/big"
 	"crypto/rand"
 	bn256 "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
+	"github.com/zhtluo/libpolycrypto/polycommit"
+	pb "github.com/zhtluo/libpolycrypto/proto"
+	"google.golang.org/protobuf/proto"
+	"io"
+	"math/big"
 )
 
 // Struct PublicInfo implements the public information available at the start of the phase.
 type PublicInfo struct {
-	Pk polycommit.Pk
+	Pk     polycommit.Pk
 	Commit bn256.G2
 }
 
@@ -25,8 +27,8 @@ type Secret struct {
 
 // Struct Secret implements the share of each node.
 type Share struct {
-	Index big.Int
-	Result big.Int
+	Index   big.Int
+	Result  big.Int
 	Witness bn256.G1
 }
 
@@ -80,15 +82,15 @@ func VerifyShare(pi *PublicInfo, sh *Share) bool {
 // Reconstruct the constant term of the secret with shares.
 func ReconstructSecret(shs []Share) *big.Int {
 	inverse := make([]big.Int, len(shs))
-	for i, _ := range(inverse) {
+	for i, _ := range inverse {
 		inverse[i].ModInverse(&shs[i].Index, bn256.Order)
 	}
 	constant := big.NewInt(0)
 	// Order + 1
 	orders1 := new(big.Int).Add(bn256.Order, big.NewInt(1))
-	for i, _ := range(shs) {
+	for i, _ := range shs {
 		partial := new(big.Int).ModInverse(&shs[i].Result, bn256.Order)
-		for j, _ := range(shs) {
+		for j, _ := range shs {
 			if i != j {
 				// p = p * (1 - x_i * x_j^-1)
 				term := new(big.Int).Mul(&shs[i].Index, &inverse[j])
@@ -103,3 +105,70 @@ func ReconstructSecret(shs []Share) *big.Int {
 	return constant
 }
 
+// Serialize the public infomation.
+func (pi *PublicInfo) Marshal() ([]byte, error) {
+	var sPi pb.PublicInfo
+	var err error
+	sPi.Pk, err = pi.Pk.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	sPi.Commit = pi.Commit.Marshal()
+	return proto.Marshal(&sPi)
+}
+
+// Deserialize the public infomation.
+func (pi *PublicInfo) Unmarshal(b []byte) error {
+	var sPi pb.PublicInfo
+	err := proto.Unmarshal(b, &sPi)
+	if err != nil {
+		return err
+	}
+	if pi == nil {
+		pi = new(PublicInfo)
+	}
+	err = pi.Pk.Unmarshal(sPi.Pk)
+	if err != nil {
+		return err
+	}
+	_, err = pi.Commit.Unmarshal(sPi.Commit)
+	return err
+}
+
+// Serialize the share.
+func (sh *Share) Marshal() ([]byte, error) {
+	var sSh pb.Share
+	var err error
+	sSh.Index, err = sh.Index.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+	sSh.Result, err = sh.Result.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+	sSh.Witness = sh.Witness.Marshal()
+	return proto.Marshal(&sSh)
+}
+
+// Deserialize the share.
+func (sh *Share) Unmarshal(b []byte) error {
+	var sSh pb.Share
+	err := proto.Unmarshal(b, &sSh)
+	if err != nil {
+		return err
+	}
+	if sh == nil {
+		sh = new(Share)
+	}
+	err = sh.Index.UnmarshalText(sSh.Index)
+	if err != nil {
+		return err
+	}
+	err = sh.Result.UnmarshalText(sSh.Result)
+	if err != nil {
+		return err
+	}
+	_, err = sh.Witness.Unmarshal(sSh.Witness)
+	return err
+}

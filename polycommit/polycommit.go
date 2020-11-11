@@ -132,7 +132,7 @@ func (pk *Pk) VerifyEval(g2 *bn256.G2, i *big.Int, res *big.Int, g1 *bn256.G1) b
 }
 
 // Serialize the specified public key
-func MarshalPk(pk *Pk) ([]byte, error) {
+func (pk *Pk) Marshal() ([]byte, error) {
 	var sPk pb.Pk
 	sPk.G1P = make([][]byte, len(pk.G1P))
 	sPk.G2P = make([][]byte, len(pk.G2P))
@@ -144,21 +144,23 @@ func MarshalPk(pk *Pk) ([]byte, error) {
 }
 
 // Deserialize the specified public key
-func UnmarshalPk(b []byte) (*Pk, error) {
+func (pk *Pk) Unmarshal(b []byte) error {
 	var sPk pb.Pk
 	err := proto.Unmarshal(b, &sPk)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pk := new(Pk)
+	if pk == nil {
+		pk = new(Pk)
+	}
 	pk.G1P = make([]bn256.G1, len(sPk.G1P))
 	pk.G2P = make([]bn256.G2, len(sPk.G2P))
 	for i, _ := range sPk.G1P {
 		_, err = pk.G1P[i].Unmarshal(sPk.G1P[i])
 		_, err = pk.G2P[i].Unmarshal(sPk.G2P[i])
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return pk, nil
+	return nil
 }

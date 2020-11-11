@@ -88,13 +88,13 @@ func TestWitness(t *testing.T) {
 }
 
 func TestMarshal(t *testing.T) {
-	var pk Pk
+	var pk, rPk Pk
 	pk.Setup(rand.Reader, deg)
-	b, err := MarshalPk(&pk)
+	b, err := pk.Marshal()
 	if err != nil {
 		t.Error(err)
 	}
-	rPk, err := UnmarshalPk(b)
+	err = rPk.Unmarshal(b)
 	if err != nil {
 		t.Error(err)
 	}
