@@ -6,12 +6,13 @@ package evss
 
 import (
 	"crypto/rand"
+	"io"
+	"math/big"
+
 	bn256 "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
 	"github.com/zhtluo/libpolycrypto/polycommit"
 	pb "github.com/zhtluo/libpolycrypto/proto"
 	"google.golang.org/protobuf/proto"
-	"io"
-	"math/big"
 )
 
 var (
@@ -86,15 +87,15 @@ func VerifyShare(pi *PublicInfo, sh *Share) bool {
 // Reconstruct the constant term of the secret with shares.
 func ReconstructSecret(shs []Share) *big.Int {
 	inverse := make([]big.Int, len(shs))
-	for i, _ := range inverse {
+	for i := range inverse {
 		inverse[i].ModInverse(&shs[i].Index, bn256.Order)
 	}
 	constant := big.NewInt(0)
 	// Order + 1
 	orders1 := new(big.Int).Add(bn256.Order, big.NewInt(1))
-	for i, _ := range shs {
+	for i := range shs {
 		partial := new(big.Int).ModInverse(&shs[i].Result, bn256.Order)
-		for j, _ := range shs {
+		for j := range shs {
 			if i != j {
 				// p = p * (1 - x_i * x_j^-1)
 				term := new(big.Int).Mul(&shs[i].Index, &inverse[j])
@@ -142,15 +143,8 @@ func (pi *PublicInfo) Unmarshal(b []byte) error {
 // Serialize the share.
 func (sh *Share) Marshal() ([]byte, error) {
 	var sSh pb.Share
-	var err error
-	sSh.Index, err = sh.Index.MarshalText()
-	if err != nil {
-		return nil, err
-	}
-	sSh.Result, err = sh.Result.MarshalText()
-	if err != nil {
-		return nil, err
-	}
+	sSh.Index = sh.Index.Bytes()
+	sSh.Result = sh.Result.Bytes()
 	sSh.Witness = sh.Witness.Marshal()
 	return proto.Marshal(&sSh)
 }
@@ -165,14 +159,8 @@ func (sh *Share) Unmarshal(b []byte) error {
 	if sh == nil {
 		sh = new(Share)
 	}
-	err = sh.Index.UnmarshalText(sSh.Index)
-	if err != nil {
-		return err
-	}
-	err = sh.Result.UnmarshalText(sSh.Result)
-	if err != nil {
-		return err
-	}
+	sh.Index.SetBytes(sSh.Index)
+	sh.Result.SetBytes(sSh.Result)
 	_, err = sh.Witness.Unmarshal(sSh.Witness)
 	return err
 }

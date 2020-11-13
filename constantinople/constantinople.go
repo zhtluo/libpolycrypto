@@ -1,8 +1,10 @@
 package constantinople
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"io"
 	"math/big"
 
@@ -21,10 +23,11 @@ type Share struct {
 // Proof on DLEQ with random r and
 // Pi = r + s[i] * hash(Gb, Gbi, Gr, Gbr, V).
 type Proof struct {
-	Gbi bn256.G1
-	Gr  bn256.G1
-	Gbr bn256.G1
-	Pi  big.Int
+	Gbi   bn256.G1
+	Gr    bn256.G1
+	Gbr   bn256.G1
+	Pi    big.Int
+	Index big.Int
 }
 
 func GenerateData(r io.Reader, secret *big.Int, index []big.Int, degree int) (*PublicInfo, []Share, error) {
@@ -75,6 +78,7 @@ func GenerateProof(r io.Reader, sh *Share, coin []byte) (*Proof, error) {
 	if err != nil {
 		return nil, err
 	}
+	pr.Index.Set(&sh.Index)
 	pr.Gbi.ScalarMult(gb, &sh.S)
 	pr.Gr.ScalarBaseMult(rVal)
 	pr.Gbr.ScalarMult(gb, rVal)
@@ -82,4 +86,53 @@ func GenerateProof(r io.Reader, sh *Share, coin []byte) (*Proof, error) {
 		[]*bn256.G1{gb, &pr.Gbi, &pr.Gr, &pr.Gbr, new(bn256.G1).ScalarBaseMult(&sh.S)}),
 		&sh.S), rVal), bn256.Order)
 	return pr, nil
+}
+
+func VerifyProof(pi *PublicInfo, id uint64, coin []byte, pr *Proof) error {
+	gb := generateCoin(coin)
+	hash := generateHashFromArray(
+		[]*bn256.G1{gb, &pr.Gbi, &pr.Gr, &pr.Gbr, &pi.V[id]})
+
+	GPi := new(bn256.G1).ScalarBaseMult(&pr.Pi)
+	GbPi := new(bn256.G1).ScalarMult(&pr.Gbi, &pr.Pi)
+
+	Vx := new(bn256.G1).ScalarMult(&pi.V[id], hash)
+	GRhs := new(bn256.G1).Add(&pr.Gr, Vx)
+	GbRhs := new(bn256.G1).Add(&pr.Gbr, Vx)
+
+	if !bytes.Equal(GPi.Marshal(), GRhs.Marshal()) ||
+		!bytes.Equal(GbPi.Marshal(), GbRhs.Marshal()) {
+		return errors.New("DLEQ verification failed.")
+	}
+	return nil
+}
+
+func interpolate(prs []Proof) *bn256.G1 {
+	inverse := make([]big.Int, len(prs))
+	for i := range inverse {
+		inverse[i].ModInverse(&prs[i].Index, bn256.Order)
+	}
+	val := new(bn256.G1).ScalarBaseMult(big.NewInt(0))
+	// Order + 1
+	orders1 := new(big.Int).Add(bn256.Order, big.NewInt(1))
+	for i := range prs {
+		partial := big.NewInt(1)
+		for j := range prs {
+			if i != j {
+				// p = p * (1 - x_i * x_j^-1)
+				term := new(big.Int).Mul(&prs[i].Index, &inverse[j])
+				term.Mod(term, bn256.Order)
+				partial.Mul(partial, new(big.Int).Sub(orders1, term))
+				partial.Mod(partial, bn256.Order)
+			}
+		}
+		partial.ModInverse(partial, bn256.Order)
+		val.Add(val, new(bn256.G1).ScalarMult(&prs[i].Gbi, partial))
+	}
+	return val
+}
+
+func Reconstruct(prs []Proof) *big.Int {
+	hash := sha256.Sum256(interpolate(prs).Marshal())
+	return new(big.Int).SetBytes(hash[:])
 }

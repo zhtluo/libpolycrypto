@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
+	"io"
+	"math/big"
+
 	bn256 "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
 	pb "github.com/zhtluo/libpolycrypto/proto"
 	"google.golang.org/protobuf/proto"
-	"io"
-	"math/big"
 )
 
 // Struct Pk implements a public key for polycommit to function on.
