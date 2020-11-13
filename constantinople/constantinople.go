@@ -88,17 +88,19 @@ func GenerateProof(r io.Reader, sh *Share, coin []byte) (*Proof, error) {
 	return pr, nil
 }
 
-func VerifyProof(pi *PublicInfo, id uint64, coin []byte, pr *Proof) error {
+func VerifyProof(pi *PublicInfo, id int, coin []byte, pr *Proof) error {
 	gb := generateCoin(coin)
 	hash := generateHashFromArray(
 		[]*bn256.G1{gb, &pr.Gbi, &pr.Gr, &pr.Gbr, &pi.V[id]})
+	hash.Mod(hash, bn256.Order)
 
 	GPi := new(bn256.G1).ScalarBaseMult(&pr.Pi)
-	GbPi := new(bn256.G1).ScalarMult(&pr.Gbi, &pr.Pi)
+	GbPi := new(bn256.G1).ScalarMult(gb, &pr.Pi)
 
 	Vx := new(bn256.G1).ScalarMult(&pi.V[id], hash)
 	GRhs := new(bn256.G1).Add(&pr.Gr, Vx)
-	GbRhs := new(bn256.G1).Add(&pr.Gbr, Vx)
+	Gbix := new(bn256.G1).ScalarMult(&pr.Gbi, hash)
+	GbRhs := new(bn256.G1).Add(&pr.Gbr, Gbix)
 
 	if !bytes.Equal(GPi.Marshal(), GRhs.Marshal()) ||
 		!bytes.Equal(GbPi.Marshal(), GbRhs.Marshal()) {
